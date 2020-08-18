@@ -20,7 +20,8 @@ setuptools.setup(
     packages=setuptools.find_packages(
         exclude=[
             "tests", "*.tests", "*.tests.*",
-            "integration_tests", "*.integration_tests", "*.integration_tests.*",
+            "integration_tests", "*.integration_tests",
+            "*.integration_tests.*",
         ]
     ),
     classifiers=[

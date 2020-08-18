@@ -98,7 +98,7 @@ class Paddock:
     def close(self):
         self.__session.close()
 
-    def __enter__(self):
+    def __enter__(self) -> 'Paddock':
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -149,9 +149,9 @@ class Paddock:
 
     def __get_irservice_info(self, resp):
         """
-        Gets general information from iracing service like current tracks, cars,
-        series, etc. Check self.TRACKS, self.CARS, self.DIVISION, self.CARCLASS,
-        self.CLUB.
+        Gets general information from iracing service like current tracks,
+        cars, series, etc. Check self.TRACKS, self.CARS, self.DIVISION,
+        self.CARCLASS, self.CLUB.
         """
 
         logger.debug("Getting iRacing Service info (cars, tracks, etc.)")
@@ -169,9 +169,11 @@ class Paddock:
                 if i not in ("SEASON", "YEARANDQUARTER"):
                     o = {ele['id']: ele for ele in o}
                 setattr(self, i, o)  # i.e self.TRACKS = o
-
-            except Exception as e:
-                logger.debug(f"Error occurred. Couldn't get {i}", exc_info=True)
+            except Exception:
+                logger.debug(
+                    f"Error occurred. Couldn't get {i}",
+                    exc_info=True
+                )
 
     def _load_irservice_var(self, varname, resp, appear=1):
         str2find = "var " + varname + " = extractJSON('"
@@ -189,7 +191,10 @@ class Paddock:
         """ Gets the irating data of a driver using its custom id (custid)
             that generates the chart located in the driver's profile. """
 
-        r = self.__request(method="GET", url=ct.URL_STATS_CHART % (custid, category))
+        r = self.__request(
+            method="GET",
+            url=ct.URL_STATS_CHART % (custid, category)
+        )
         return r.json()
 
     def driver_counts(self):
@@ -215,7 +220,10 @@ class Paddock:
     def personal_best(self, custid=None, carid=0):
         """ Personal best times of driver (custid) using car
             (carid. check self.CARS) set in official events."""
-        r = self.__request(method="GET", url=ct.URL_PERSONAL_BEST % (carid, custid))
+        r = self.__request(
+            method="GET",
+            url=ct.URL_PERSONAL_BEST % (carid, custid)
+        )
         return r.json()
 
     def driverdata(self, drivername):
@@ -271,10 +279,20 @@ class Paddock:
         total_results, drivers = 0, {}
 
         try:
-            r = self.__request(method="POST", url=ct.URL_DRIVER_STATS, data=data)
+            r = self.__request(
+                method="POST",
+                url=ct.URL_DRIVER_STATS,
+                data=data
+            )
             res = r.json()
-            total_results = res['d'][list(res['m'].keys())[list(res['m'].values()).index('rowcount')]]
-            custid_id = list(res['m'].keys())[list(res['m'].values()).index('rowcount')]
+            total_results = res['d'][
+                list(res['m'].keys())[
+                    list(res['m'].values()).index('rowcount')
+                ]
+            ]
+            custid_id = list(res['m'].keys())[
+                list(res['m'].values()).index('rowcount')
+            ]
             header = res['m']
             f = res['d']['r'][0]
             if int(f[custid_id]) == int(custid):
@@ -283,7 +301,7 @@ class Paddock:
                 drivers = res['d']['r']
             drivers = format_results(drivers, header)
 
-        except Exception as e:
+        except Exception:
             logger.debug("Error fetching driver search data.", exc_info=True)
 
         return drivers, total_results
@@ -293,7 +311,7 @@ class Paddock:
                         license_level=ct.ALL, car=ct.ALL, track=ct.ALL,
                         series=ct.ALL, season=(2016, 3, ct.ALL),
                         date_range=ct.ALL, page=1, sort=ct.SORT_TIME,
-                        order= ct.ORDER_DESC):
+                        order=ct.ORDER_DESC):
         """ Search race results using various fields. Returns a tuple
             (results, total_results) so if you want all results you should
             request different pages (using page). Each page has 25
@@ -338,9 +356,10 @@ class Paddock:
                 data['raceweek'] = season[2]
         else:
             # Date range
-            tc = lambda s:\
-                time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d").
-                            timetuple()) * 1000
+            def tc(s):
+                return time.mktime(
+                    datetime.datetime.strptime(s, "%Y-%m-%d").timetuple()
+                ) * 1000
             data['starttime_low'] = tc(date_range[0])  # multiplied by 1000
             data['starttime_high'] = tc(date_range[1])
 
@@ -355,9 +374,15 @@ class Paddock:
                              ct.LIC_D, ct.LIC_PRO, ct.LIC_PRO_WC)
         for v in license_level:
             data[lic_vars[v]] = 1
-        r = self.__request(method="POST", url=ct.URL_RESULTS_ARCHIVE, data=data)
+        r = self.__request(
+            method="POST",
+            url=ct.URL_RESULTS_ARCHIVE,
+            data=data
+        )
         res = r.json()
-        total_results = res['d'][list(res['m'].keys())[list(res['m'].values()).index('rowcount')]]
+        total_results = res['d'][
+            list(res['m'].keys())[list(res['m'].values()).index('rowcount')]
+        ]
         results = []
         if total_results > 0:
             results = res['d']['r']
@@ -388,9 +413,15 @@ class Paddock:
         data = {'sort': sort, 'order': order, 'seasonid': season,
                 'carclassid': carclass, 'clubid': club, 'raceweek': raceweek,
                 'division': division, 'start': lowerbound, 'end': upperbound}
-        r = self.__request(method="POST", url=ct.URL_SEASON_STANDINGS, data=data)
+        r = self.__request(
+            method="POST",
+            url=ct.URL_SEASON_STANDINGS,
+            data=data
+        )
         res = r.json()
-        total_results = res['d'][list(res['m'].keys())[list(res['m'].values()).index('rowcount')]]
+        total_results = res['d'][
+            list(res['m'].keys())[list(res['m'].values()).index('rowcount')]
+        ]
         results = res['d']['r']
         header = res['m']
         results = format_results(results, header)
@@ -417,15 +448,16 @@ class Paddock:
 
         if date_range is not None:
             # Date range
-            tc = lambda s:\
-                time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d").
-                            timetuple()) * 1000
+            def tc(s):
+                return time.mktime(
+                    datetime.datetime.strptime(s, "%Y-%m-%d").timetuple()
+                ) * 1000
             data['starttime_lowerbound'] = tc(date_range[0])
             # multiplied by 1000
             data['starttime_upperbound'] = tc(date_range[1])
 
         r = self.__request(method="POST", url=ct.URL_HOSTED_RESULTS, data=data)
-        res = parse(r)
+        res = r.json()
         total_results = res['rowcount']
         results = res['rows']  # doesn't need format_results
         return results, total_results
@@ -455,8 +487,11 @@ class Paddock:
         for seriesobj in seriesobjs:
             seasonid = re.findall(r'seasonID:([0-9]*),', seriesobj)[0]
             try:
-                image = re.findall(r'col_color_img:".+members/member_images/series/([^"]*)"', seriesobj)[0]
-            except:
+                image = re.findall(
+                    r'col_color_img:".+members/member_images/series/([^"]*)"',
+                    seriesobj
+                )[0]
+            except Exception:
                 image = "default.jpg"
             series_images[seasonid] = image
 
@@ -465,7 +500,8 @@ class Paddock:
     def season_race_sessions(self, season, raceweek):
         """ Gets races sessions for season in specified raceweek """
 
-        r = self.__request(method="POST",
+        r = self.__request(
+            method="POST",
             url=ct.URL_SERIES_RACERESULTS,
             data={'seasonid': season, 'raceweek': raceweek}  # TODO no bounds?
         )
@@ -494,7 +530,10 @@ class Paddock:
         ]
         header_res = []
         for header in data[3]:
-            header_res.append("".join([c for c in header.lower() if ord(c) > 96 and ord(c) < 123]))
+            header_res.append("".join([
+                c for c in header.lower()
+                if 96 < ord(c) < 123
+            ]))
         header_ev = data[0]
         for i in range(4, len(data)):
             for j in range(len(data[i])):
@@ -510,18 +549,26 @@ class Paddock:
     def event_results_web(self, subsession):
         """ Get the event results from the web page rather than CSV.
         Required to get ttRating for time trials """
-        r = self.__request(method="GET", url=ct.URL_GET_EVENTRESULTS % subsession)
+        r = self.__request(
+            method="GET",
+            url=ct.URL_GET_EVENTRESULTS % subsession
+        )
 
         resp = re.sub('\t+', ' ', r.text)
         resp = re.sub('\r\r\n+', ' ', resp)
-        resp = re.sub('\s+', ' ', resp)
+        resp = re.sub(r'\s+', ' ', resp)
 
         str2find = "var resultOBJ ="
         ind1 = resp.index(str2find)
         ind2 = resp.index("};", ind1) + 1
         resp = resp[ind1 + len(str2find): ind2].replace('+', ' ')
 
-        ttitems = ("custid", "isOfficial", "carID", "avglaptime", "fastestlaptime", "fastestlaptimems", "fastestlapnum", "bestnlapstime", "bestnlapsnum", "lapscomplete", "incidents", "newttRating", "oldttRating", "sr_new", "sr_old", "reasonOutName")
+        ttitems = (
+            "custid", "isOfficial", "carID", "avglaptime", "fastestlaptime",
+            "fastestlaptimems", "fastestlapnum", "bestnlapstime",
+            "bestnlapsnum", "lapscomplete", "incidents", "newttRating",
+            "oldttRating", "sr_new", "sr_old", "reasonOutName"
+        )
         out = ""
         for ttitem in ttitems:
             ind1 = resp.index(ttitem)
@@ -542,12 +589,14 @@ class Paddock:
 
     def get_qual_sessnum(self, subsession):
         """ Get the qualifying session number from the results web page """
-
-        r = self.__request(method="GET", url=ct.URL_GET_EVENTRESULTS % subsession)
+        r = self.__request(
+            method="GET",
+            url=ct.URL_GET_EVENTRESULTS % subsession
+        )
 
         resp = re.sub('\t+', ' ', r.text)
-        resp = re.sub('\r\r\n+', ' ' ,resp)
-        resp = re.sub('\s+', ' ' ,resp)
+        resp = re.sub('\r\r\n+', ' ', resp)
+        resp = re.sub(r'\s+', ' ', resp)
 
         str2find = "var resultOBJ ="
         ind1 = resp.index(str2find)
@@ -557,7 +606,7 @@ class Paddock:
         m = re.search(r'simSessNum:(-?\d+), simSesName:"(\w+)",', resp)
         if m:
             if m.group(2) == "PRACTICE":
-                return int(m.group(1)) + 1            
+                return int(m.group(1)) + 1
         else:
             return None
 
@@ -565,13 +614,19 @@ class Paddock:
         """ Get the results for a time trial event from the web page.
         """
 
-        r = self.__request(method="GET", url=ct.URL_GET_SUBSESSRESULTS % subsession)
+        r = self.__request(
+            method="GET",
+            url=ct.URL_GET_SUBSESSRESULTS % subsession
+        )
         return r.json()['rows']
 
     def event_laps_single(self, subsession, custid, sessnum=0):
         """ Get the lap times for an event from the web page.
         """
-        r = self.__request(method="GET", url=ct.URL_GET_LAPS_SINGLE % (subsession, custid, sessnum))
+        r = self.__request(
+            method="GET",
+            url=ct.URL_GET_LAPS_SINGLE % (subsession, custid, sessnum)
+        )
         return r.json()
 
     def event_laps_all(self, subsession):
@@ -583,21 +638,26 @@ class Paddock:
     def best_lap(self, subsessionid, custid):
         """ Get the best lap time for a driver from an event.
         """
-        laptime = self.event_laps_single(subsessionid, custid)['drivers'][0]['bestlaptime']
+        laptime = self.event_laps_single(
+            subsessionid, custid
+        )['drivers'][0]['bestlaptime']
         return laptime
 
     def world_record(self, seasonyear, seasonquarter, carid, trackid, custid):
         """ Get the world record lap time for certain car in a season.
         """
 
-        r = self.__request(method="GET", url=ct.URL_GET_WORLDRECORD % (seasonyear, seasonquarter, carid, trackid, custid))
+        r = self.__request(
+            method="GET", url=ct.URL_GET_WORLDRECORD % (
+                seasonyear, seasonquarter, carid, trackid, custid
+            ))
         res = r.json()
 
         header = res['m']
         try:
             results = res['d']['r'][1]
             newr = dict()
-            for k, v  in results.items():
+            for k, v in results.items():
                 newr[header[k]] = v
 
             if newr['race'].find("%3A") > -1:
@@ -605,7 +665,7 @@ class Paddock:
                 record = (t.minute * 60) + t.second + (t.microsecond / 1000000)
             else:
                 record = float(newr['race'])
-        except:
+        except Exception:
             record = None
 
         return record
