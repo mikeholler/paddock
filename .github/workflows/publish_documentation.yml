@@ -1,0 +1,26 @@
+name: Publish Documentation
+
+on:
+  push:
+    branches: master
+
+jobs:
+  flake8_py3:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Asciidoctor
+        run: |
+          sudo apt-get install gem -y
+          sudo gem install asciidoctor
+      - name: Build Documentation
+        run: |
+          asciidoctor README.adoc
+          mkdir public
+          mv README.html public/
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
