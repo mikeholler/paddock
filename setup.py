@@ -11,7 +11,7 @@ with open(os.path.join(here, 'paddock', '__version__.py'), 'r', 'utf-8') as f:
 
 setuptools.setup(
     name=about["__title__"],
-    version=about["__version__"],
+    version=about.get("__version__", "0.0.0.dev0"),
     description=about["__description__"],
     url=about["__url__"],
     author=about["__author__"],
