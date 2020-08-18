@@ -30,7 +30,7 @@ setuptools.setup(
     ],
     python_requires=">=3.8",
     install_requires=[
-        "decorator>=4.4.3,<5",
+        "decorator>=4.4.2,<5",
         "requests>=2.24,<3",
     ],
 )
