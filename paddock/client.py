@@ -1,6 +1,7 @@
 import csv
 import datetime
 import json
+import logging
 import re
 import requests
 import time
@@ -10,7 +11,9 @@ from io import StringIO
 
 from paddock import constants as ct
 from paddock.util import *
-from paddock import logger
+
+
+logger = logging.getLogger(__name__)
 
 
 class Paddock:

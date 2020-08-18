@@ -24,8 +24,4 @@ __all__ = [
     "__copyright__",
     "Paddock",
     "constants",
-    "logger",
 ]
-
-
-logger = logging.getLogger(__name__)
