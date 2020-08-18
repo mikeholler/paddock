@@ -5,7 +5,7 @@ on:
     branches: master
 
 jobs:
-  flake8_py3:
+  publish_docs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
