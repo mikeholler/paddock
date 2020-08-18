@@ -40,8 +40,10 @@ IRACING_PASSWORD = get_required_env("IRACING_PASSWORD")
 # activity, we see the disadvantages of 1) using a singleton and 2) sharing
 # state between tests are outweighed by being good citizens to the iRacing
 # platform.
-client = Paddock()
-client.login(username=IRACING_USERNAME, password=IRACING_PASSWORD)
+client = Paddock(
+    username=IRACING_USERNAME,
+    password=IRACING_PASSWORD,
+)
 
 
 def async_test(f):

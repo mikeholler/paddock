@@ -10,7 +10,7 @@ from urllib.parse import urlencode as encode
 from io import StringIO
 
 from paddock import constants as ct
-from paddock.util import *
+from paddock.util import format_results
 
 
 logger = logging.getLogger(__name__)
@@ -24,117 +24,59 @@ class Paddock:
     returned in JSON format and converted to python dicts.
     """
 
-    def __init__(self):
-        self.last_cookie = ''
-        self.logged_in = False
-        self.custid = 0
+    def __init__(self, username: str, password: str):
+        self.__session = requests.Session()
+        self.__username = username
+        self.__password = password
 
-    def __save_cookie(self):
-        """ Saves the current cookie to disk from a successful login to avoid
-            future login procedures and save time. A cookie usually last
-            at least a couple of hours """
-
-        logger.debug("Saving cookie for future use")
-        with open("cookie.tmp", "w") as fp:
-            fp.write(f"{self.last_cookie}\n{str(self.custid)}")
-
-    def __load_cookie(self):
-        """ Loads a previously saved cookie """
-        try:
-            o = open('cookie.tmp', 'r')
-            self.last_cookie, self.custid = o.read().split('\n')
-            o.close()
-            return True
-        except:
-            return False
-
-    def login(self, username='', password=''):
+    def __authenticate(self):
         """ Log in to iRacing members site. If there is a valid cookie saved
             then it tries to use it to avoid a new login request. Returns
             True is the login was succesful and stores the customer id
             (custid) of the current login in self.custid. """
 
-        if self.logged_in:
-            return True
-        data = {"username": username, "password": password, 'utcoffset': 300,
-                'todaysdate': ''}
-        try:
-            logger.debug("Logging in...")
-            # Check if there's a previous cookie
-            if self.__load_cookie() and self.__check_cookie():
-                #  If previous cookie is valid
-                logger.debug("Previous cookie valid")
-                self.logged_in = True
-                # TODO Should we cache this?
-                return self.logged_in
-            else:
-                logger.debug("No cookie")
+        login_data = {
+            "username": self.__username,
+            "password": self.__password,
+            "utcoffset": round(abs(time.localtime().tm_gmtoff / 60)),
+            "todaysdate": ""
+        }
 
-            self.custid = ''
-            r = self.__req(ct.URL_IRACING_LOGIN, grab_cookie=True)
-            r = self.__req(ct.URL_IRACING_LOGIN2, data,
-                           cookie=self.last_cookie, grab_cookie=True)
-            logger.debug(r)
+        r = self.__session.post(url=ct.URL_IRACING_LOGIN2, data=login_data)
 
-            if 'irsso_membersv2' in self.last_cookie:
-                self.logged_in = True
-                r = self.__req(ct.URL_IRACING_HOME, cookie=self.last_cookie)
-                ind = r.index('js_custid')
-                custid = int(r[ind + 11: r.index(';', ind)])
-                self.custid = custid
-                self.__get_irservice_info(r)
-                self.__save_cookie()
-                logger.debug("Log in succesful")
-            else:
-                logger.debug("Invalid Login (user: %s). Please check your\
-                        credentials" % (username))
-                self.logged_in = False
-
-        except Exception as e:
-            logger.debug("Error on Login Request", exc_info=True)
-            self.logged_in = False
-        return self.logged_in
-
-    def logout(self):
-        self.logged_in = False  # TODO proper logout
-
-    def __check_cookie(self):
-        """ Checks the cookie by testing a request response"""
-
-        r = parse(self.__req(ct.URL_DRIVER_COUNTS, cookie=self.last_cookie))
-        if isinstance(r, dict):
-            return True
-        return False
-
-    def __req(self, url, data=None, cookie=None, grab_cookie=False,
-              useget=False):
-        """ Creates and sends the HTTP requests to iRacing site """
-
-        h = ct.HEADERS.copy()
-        if cookie is not None:  # Send the cookie
-            h['Cookie'] = cookie
-        elif len(self.last_cookie):
-            h['Cookie'] = self.last_cookie
-
-        if (data is None) or useget:
-            resp = requests.get(url, headers=h, params=data)
+        if 'failedlogin' in r.url:
+            logger.warning("Login Failed. Please check credentials.")
+            raise UserWarning(
+                'The login POST request was redirected to /failedlogin, '
+                'indicating an authentication failure. If credentials are '
+                'correct, check that a captcha is not required by manually '
+                'visiting members.iracing.com'
+            )
         else:
-            h['Content-Type'] = 'application/x-www-form-urlencoded;\
-                    charset=UTF-8'
-            resp = requests.post(url, data=data, headers=h)
-        if 'Set-Cookie' in resp.headers and grab_cookie:
-            self.last_cookie = resp.headers['Set-Cookie']
-            # Must get irsso_members from another header
-            if 'cookie' in resp.request.headers:
-                resp_req_cookie = resp.request.headers['cookie']
-                self.last_cookie += ';' + resp_req_cookie
-        html = resp.text
-        return html
+            logger.debug("Login successful")
+
+    def __request(self, *args, **kwargs):
+        if not self.__session.cookies:
+            logger.debug("Not yet authenticated, so authenticating...")
+            self.__authenticate()
+
+        r = self.__session.request(*args, **kwargs)
+
+        if 400 <= r.status_code <= 599 or r.is_redirect:
+            logger.info(
+                "Request was redirected, indicating that the cookies are "
+                "invalid. Initiating authentication and retrying the request."
+            )
+            self.__authenticate()
+            return self.__request(*args, **kwargs)
+        return r
 
     def __get_irservice_info(self, resp):
-        """ Gets general information from iracing service like current tracks,
-            cars, series, etc. Check self.TRACKS, self.CARS, self.DIVISION
-            , self.CARCLASS, self.CLUB. """
+        """
+        Gets general information from iracing service like current tracks, cars,
+        series, etc. Check self.TRACKS, self.CARS, self.DIVISION, self.CARCLASS,
+        self.CLUB.
+        """
 
         logger.debug("Getting iRacing Service info (cars, tracks, etc.)")
         items = {"TRACKS":  "TrackListing", "CARS": "CarListing",
@@ -171,55 +113,50 @@ class Paddock:
         """ Gets the irating data of a driver using its custom id (custid)
             that generates the chart located in the driver's profile. """
 
-        r = self.__req(ct.URL_STATS_CHART % (custid, category),
-                       cookie=self.last_cookie)
-        return parse(r)
+        r = self.__request(method="GET", url=ct.URL_STATS_CHART % (custid, category))
+        return r.json()
 
     def driver_counts(self):
         """ Gets list of connected myracers and notifications. """
-        r = self.__req(ct.URL_DRIVER_COUNTS, cookie=self.last_cookie)
-        return parse(r)
+        r = self.__request(method="GET", url=ct.URL_DRIVER_COUNTS)
+        return r.json()
 
     def career_stats(self, custid=None):
         """ Gets career stats (top5, top 10, etc.) of driver (custid)."""
-        r = self.__req(ct.URL_CAREER_STATS % (custid),
-                       cookie=self.last_cookie)
-        return parse(r)[0]
+        r = self.__request(method="GET", url=ct.URL_CAREER_STATS % custid)
+        return r.json()[0]
 
     def yearly_stats(self, custid=None):
         """ Gets yearly stats (top5, top 10, etc.) of driver (custid)."""
-        r = self.__req(ct.URL_YEARLY_STATS % (custid),
-                       cookie=self.last_cookie)
-        return parse(r)
+        r = self.__request(method="GET", url=ct.URL_YEARLY_STATS % custid)
+        return r.json()
 
     def cars_driven(self, custid=None):
         """ Gets list of cars driven by driver (custid)."""
-        r = self.__req(ct.URL_CARS_DRIVEN % (custid),
-                       cookie=self.last_cookie)
-        return parse(r)
+        r = self.__request(method="GET", url=ct.URL_CARS_DRIVEN % custid)
+        return r.json()
 
     def personal_best(self, custid=None, carid=0):
         """ Personal best times of driver (custid) using car
             (carid. check self.CARS) set in official events."""
-        r = self.__req(ct.URL_PERSONAL_BEST % (carid, custid),
-                       cookie=self.last_cookie)
-        return parse(r)
+        r = self.__request(method="GET", url=ct.URL_PERSONAL_BEST % (carid, custid))
+        return r.json()
 
     def driverdata(self, drivername):
         """ Personal data of driver  using its name in the request
             (i.e drivername="Victor Beltran"). """
 
-        r = self.__req(ct.URL_DRIVER_STATUS % (encode({
-            'searchTerms': drivername})), cookie=self.last_cookie)
-        return parse(r)
+        r = self.__request(method="GET", url=ct.URL_DRIVER_STATUS % (encode({
+            'searchTerms': drivername})))
+        return r.json()
 
     def lastrace_stats(self, custid=None):
         """ Gets stats of last races (10 max?) of driver (custid)."""
-        r = self.__req(ct.URL_LASTRACE_STATS % (custid),
-                       cookie=self.last_cookie)
-        return parse(r)
+        r = self.__request(method="GET", url=ct.URL_LASTRACE_STATS % custid)
+        return r.json()
 
-    def driver_search(self, race_type=ct.RACE_TYPE_ROAD, location=ct.LOC_ALL,
+    def driver_search(self, custid, race_type=ct.RACE_TYPE_ROAD,
+                      location=ct.LOC_ALL,
                       license=(ct.LIC_ROOKIE, ct.ALL), irating=(0, ct.ALL),
                       ttrating=(0, ct.ALL), avg_start=(0, ct.ALL),
                       avg_finish=(0, ct.ALL), avg_points=(0, ct.ALL),
@@ -242,7 +179,7 @@ class Paddock:
 
         active = int(active)
         # Data to POST
-        data = {'custid': self.custid, 'search': search, 'friend': friend,
+        data = {'custid': custid, 'search': search, 'friend': friend,
                 'watched': studied, 'country': location, 'recent': recent,
                 'category': race_type, 'classlow': license[0],
                 'classhigh': license[1], 'iratinglow': irating[0],
@@ -258,14 +195,13 @@ class Paddock:
         total_results, drivers = 0, {}
 
         try:
-            r = self.__req(ct.URL_DRIVER_STATS, data=data,
-                           cookie=self.last_cookie)
-            res = parse(r)
+            r = self.__request(method="POST", url=ct.URL_DRIVER_STATS, data=data)
+            res = r.json()
             total_results = res['d'][list(res['m'].keys())[list(res['m'].values()).index('rowcount')]]
             custid_id = list(res['m'].keys())[list(res['m'].values()).index('rowcount')]
             header = res['m']
             f = res['d']['r'][0]
-            if int(f[custid_id]) == int(self.custid):
+            if int(f[custid_id]) == int(custid):
                 drivers = res['d']['r'][1:]
             else:
                 drivers = res['d']['r']
@@ -343,9 +279,8 @@ class Paddock:
                              ct.LIC_D, ct.LIC_PRO, ct.LIC_PRO_WC)
         for v in license_level:
             data[lic_vars[v]] = 1
-        r = self.__req(ct.URL_RESULTS_ARCHIVE, data=data,
-                       cookie=self.last_cookie)
-        res = parse(r)
+        r = self.__request(method="POST", url=ct.URL_RESULTS_ARCHIVE, data=data)
+        res = r.json()
         total_results = res['d'][list(res['m'].keys())[list(res['m'].values()).index('rowcount')]]
         results = []
         if total_results > 0:
@@ -359,8 +294,8 @@ class Paddock:
         """ Get All season data available at Series Stats page
         """
         logger.debug("Getting iRacing Seasons with Stats")
-        resp = self.__req(ct.URL_SEASON_STANDINGS2)
-        return self._load_irservice_var("SeasonListing", resp)
+        resp = self.__request(method="GET", url=ct.URL_SEASON_STANDINGS2)
+        return self._load_irservice_var("SeasonListing", resp.text)
 
     def season_standings(self, season, carclass, club=ct.ALL, raceweek=ct.ALL,
                          division=ct.ALL, sort=ct.SORT_POINTS,
@@ -377,8 +312,8 @@ class Paddock:
         data = {'sort': sort, 'order': order, 'seasonid': season,
                 'carclassid': carclass, 'clubid': club, 'raceweek': raceweek,
                 'division': division, 'start': lowerbound, 'end': upperbound}
-        r = self.__req(ct.URL_SEASON_STANDINGS, data=data)
-        res = parse(r)
+        r = self.__request(method="POST", url=ct.URL_SEASON_STANDINGS, data=data)
+        res = r.json()
         total_results = res['d'][list(res['m'].keys())[list(res['m'].values()).index('rowcount')]]
         results = res['d']['r']
         header = res['m']
@@ -413,7 +348,7 @@ class Paddock:
             # multiplied by 1000
             data['starttime_upperbound'] = tc(date_range[1])
 
-        r = self.__req(ct.URL_HOSTED_RESULTS, data=data)
+        r = self.__request(method="POST", url=ct.URL_HOSTED_RESULTS, data=data)
         res = parse(r)
         total_results = res['rowcount']
         results = res['rows']  # doesn't need format_results
@@ -422,18 +357,25 @@ class Paddock:
     def session_times(self, series_season, start, end):
         """ Gets Current and future sessions (qualy, practice, race)
             of series_season """
-        r = self.__req(ct.URL_SESSION_TIMES, data={'start': start, 'end': end,
-                       'season': series_season}, useget=True)
-        return parse(r)
+        r = self.__request(
+            method="GET",
+            url=ct.URL_SESSION_TIMES,
+            params={
+                'start': start,
+                'end': end,
+                'season': series_season
+            }
+        )
+        return r.json()
 
     def current_series_images(self):
         """ Gets Current series images
         """
 
-        resp = self.__req(ct.URL_CURRENT_SERIES, useget=True)
+        resp = self.__request(method="GET", url=ct.URL_CURRENT_SERIES)
 
         series_images = {}
-        seriesobjs = re.findall(r'seriesobj=([^;]*);', resp)
+        seriesobjs = re.findall(r'seriesobj=([^;]*);', resp.text)
         for seriesobj in seriesobjs:
             seasonid = re.findall(r'seasonID:([0-9]*),', seriesobj)[0]
             try:
@@ -447,9 +389,11 @@ class Paddock:
     def season_race_sessions(self, season, raceweek):
         """ Gets races sessions for season in specified raceweek """
 
-        r = self.__req(ct.URL_SERIES_RACERESULTS, data={'seasonid': season,
-                       'raceweek': raceweek})  # TODO no bounds?
-        res = parse(r)
+        r = self.__request(method="POST",
+            url=ct.URL_SERIES_RACERESULTS,
+            data={'seasonid': season, 'raceweek': raceweek}  # TODO no bounds?
+        )
+        res = r.json()
         try:
             header = res['m']
             results = res['d']
@@ -463,8 +407,15 @@ class Paddock:
         """ Gets the event results (table of positions, times, etc.). The
             event is identified by a subsession id. """
 
-        r = self.__req(ct.URL_GET_EVENTRESULTS_CSV % (subsession, sessnum)).encode('utf8').decode('utf-8')
-        data = [x for x in csv.reader(StringIO(r), delimiter=',', quotechar='"')]
+        # TODO: encode/decode seems unnecessary
+        csv_text = self.__request(
+            method="GET",
+            url=ct.URL_GET_EVENTRESULTS_CSV % (subsession, sessnum)
+        ).text.encode('utf8').decode('utf-8')
+        data = [
+            x for x in
+            csv.reader(StringIO(csv_text), delimiter=',', quotechar='"')
+        ]
         header_res = []
         for header in data[3]:
             header_res.append("".join([c for c in header.lower() if ord(c) > 96 and ord(c) < 123]))
@@ -483,12 +434,11 @@ class Paddock:
     def event_results_web(self, subsession):
         """ Get the event results from the web page rather than CSV.
         Required to get ttRating for time trials """
+        r = self.__request(method="GET", url=ct.URL_GET_EVENTRESULTS % subsession)
 
-        r = self.__req(ct.URL_GET_EVENTRESULTS % (subsession))
-
-        resp = re.sub('\t+',' ',r)
-        resp = re.sub('\r\r\n+',' ',resp)
-        resp = re.sub('\s+',' ',resp)
+        resp = re.sub('\t+', ' ', r.text)
+        resp = re.sub('\r\r\n+', ' ', resp)
+        resp = re.sub('\s+', ' ', resp)
 
         str2find = "var resultOBJ ="
         ind1 = resp.index(str2find)
@@ -517,11 +467,11 @@ class Paddock:
     def get_qual_sessnum(self, subsession):
         """ Get the qualifying session number from the results web page """
 
-        r = self.__req(ct.URL_GET_EVENTRESULTS % (subsession))
+        r = self.__request(method="GET", url=ct.URL_GET_EVENTRESULTS % subsession)
 
-        resp = re.sub('\t+',' ',r)
-        resp = re.sub('\r\r\n+',' ',resp)
-        resp = re.sub('\s+',' ',resp)
+        resp = re.sub('\t+', ' ', r.text)
+        resp = re.sub('\r\r\n+', ' ' ,resp)
+        resp = re.sub('\s+', ' ' ,resp)
 
         str2find = "var resultOBJ ="
         ind1 = resp.index(str2find)
@@ -539,46 +489,33 @@ class Paddock:
         """ Get the results for a time trial event from the web page.
         """
 
-        r = self.__req(ct.URL_GET_SUBSESSRESULTS % (subsession), useget=True)
-
-        out = parse(r)['rows']
-
-        return out
+        r = self.__request(method="GET", url=ct.URL_GET_SUBSESSRESULTS % subsession)
+        return r.json()['rows']
 
     def event_laps_single(self, subsession, custid, sessnum=0):
         """ Get the lap times for an event from the web page.
         """
-
-        r = self.__req(ct.URL_GET_LAPS_SINGLE % (subsession, custid, sessnum))
-
-        out = parse(r)
-
-        return out
+        r = self.__request(method="GET", url=ct.URL_GET_LAPS_SINGLE % (subsession, custid, sessnum))
+        return r.json()
 
     def event_laps_all(self, subsession):
         """ Get the lap times for an event from the web page.
         """
-
-        r = self.__req(ct.URL_GET_LAPS_ALL % subsession)
-
-        out = parse(r)
-
-        return out
+        r = self.__request(method="GET", url=ct.URL_GET_LAPS_ALL % subsession)
+        return r.json()
 
     def best_lap(self, subsessionid, custid):
         """ Get the best lap time for a driver from an event.
         """
-
         laptime = self.event_laps_single(subsessionid, custid)['drivers'][0]['bestlaptime']
-
         return laptime
 
     def world_record(self, seasonyear, seasonquarter, carid, trackid, custid):
         """ Get the world record lap time for certain car in a season.
         """
 
-        r = self.__req(ct.URL_GET_WORLDRECORD % (seasonyear, seasonquarter, carid, trackid, custid))
-        res = parse(r)
+        r = self.__request(method="GET", url=ct.URL_GET_WORLDRECORD % (seasonyear, seasonquarter, carid, trackid, custid))
+        res = r.json()
 
         header = res['m']
         try:
@@ -596,10 +533,3 @@ class Paddock:
             record = None
 
         return record
-
-
-if __name__ == '__main__':
-    irw = Paddock()
-    user, passw = ('username', 'password')
-    irw.login(user, passw)
-    print("Cars Driven", irw.cars_driven())  # example usage
