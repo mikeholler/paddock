@@ -1,7 +1,11 @@
 import logging
+from paddock.client import Paddock
+import paddock.constants as constants
 
 __all__ = [
-    "logger"
+    "Paddock",
+    "constants",
+    "logger",
 ]
 
 
