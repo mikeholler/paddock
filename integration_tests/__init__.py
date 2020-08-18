@@ -10,6 +10,8 @@ from paddock._client import Paddock
 __all__ = [
     "IRacingIntegrationTest",
     "async_test",
+    "IRACING_USERNAME",
+    "IRACING_PASSWORD",
 ]
 
 logging.basicConfig(

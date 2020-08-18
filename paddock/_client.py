@@ -2,12 +2,18 @@ import csv
 import datetime
 import json
 import logging
+import pickle
 import re
 import requests
 import time
 
-from urllib.parse import urlencode as encode
 from io import StringIO
+from pathlib import Path
+from typing import (
+    Optional,
+    Union,
+)
+from urllib.parse import urlencode as encode
 
 from paddock import constants as ct
 from paddock._util import format_results
@@ -24,15 +30,81 @@ class Paddock:
     returned in JSON format and converted to python dicts.
     """
 
-    def __init__(self, username: str, password: str):
+    def __init__(
+            self,
+            username: str,
+            password: str,
+            cookie_file: Optional[Union[str, Path]] = None,
+    ):
+        """
+        :param username: Username you use to log into iRacing, generally an
+            email address.
+        :param password: Password you use to log into iRacing.
+        :param cookie_file: Optional path to a file that will be used to store
+            cookies from the active session. If cookie_file exists, it will be
+            loaded and tested before performing a separate authentication step.
+            The file will be written each time an authentication request is
+            made. If parent directories do not exist, they will be created.
+            The ".pickle" extension is recommended e.g., "cookies.pickle".
+        """
+        if cookie_file is None:
+            self.__cookie_file = None
+        elif isinstance(cookie_file, Path):
+            self.__cookie_file = cookie_file
+        else:
+            self.__cookie_file = Path(cookie_file)
+
         self.__session = requests.Session()
         self.__username = username
         self.__password = password
 
+        if self.__cookie_file is not None:
+            self.__load_session()
+
+    def __load_session(self):
+        """
+        Attempt to load an existing session, failing gracefully if it fails.
+        :return:
+        """
+        if self.__cookie_file is None:
+            logger.debug("No cookie file set.")
+
+        # noinspection PyBroadException
+        try:
+            with self.__cookie_file.open("rb") as f:
+                self.__session.cookies.update(pickle.load(f))
+        except FileNotFoundError:
+            logger.debug("Cookie file does not exist. "
+                         "Paddock will create a new session.")
+        except IOError:
+            logger.debug("Unable to read cookie file. "
+                         "Paddock will create a new session.")
+        except pickle.PickleError:
+            logger.warning("Specified cookie file is not a pickle file. "
+                           "Paddock will create a new session.")
+        except Exception:
+            logger.warning("Unexpected error occurred reading cookie file. "
+                           "Paddock will create a new session.", exc_info=True)
+
+    def __save_session(self):
+        self.__cookie_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with self.__cookie_file.open("wb") as f:
+            pickle.dump(self.__session.cookies, f)
+
+    def close(self):
+        self.__session.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__session.close()
+
     def __authenticate(self):
         """ Log in to iRacing members site. If there is a valid cookie saved
             then it tries to use it to avoid a new login request. Returns
-            True is the login was succesful and stores the customer id
+            True is the login was successful and stores the customer id
             (custid) of the current login in self.custid. """
 
         login_data = {
@@ -53,6 +125,7 @@ class Paddock:
                 'visiting members.iracing.com'
             )
         else:
+            self.__save_session()
             logger.debug("Login successful")
 
     def __request(self, *args, **kwargs):
