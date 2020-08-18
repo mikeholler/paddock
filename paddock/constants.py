@@ -66,55 +66,5 @@ INC_FLAGS = {
     2048: "tow"
 }
 
-URL_BASE = "https://members.iracing.com"
-URL_MEMBERSITE_BASE = f"{URL_BASE}/membersite"
-URL_MEMBERSTATS_BASE = f"{URL_BASE}/memberstats"
-
-# URLS
-URL_IRACING_LOGIN = f"{URL_MEMBERSITE_BASE}/login.jsp"
-URL_IRACING_LOGIN2 = f"{URL_MEMBERSITE_BASE}/Login"
-URL_IRACING_HOME = f"{URL_MEMBERSITE_BASE}/member/Home.do"
-URL_CURRENT_SERIES = f"{URL_MEMBERSITE_BASE}/member/Series.do"
-URL_STATS_CHART = f"{URL_MEMBERSTATS_BASE}/member/GetChartData" \
-                  f"?custId=%s&catId=%s&chartType=1"
-URL_DRIVER_COUNTS = f"{URL_MEMBERSITE_BASE}/member/GetDriverCounts"
-URL_CAREER_STATS = f"{URL_MEMBERSTATS_BASE}/member/GetCareerStats?custid=%s"
-URL_YEARLY_STATS = f"{URL_MEMBERSTATS_BASE}/member/GetYearlyStats?custid=%s"
-URL_CARS_DRIVEN = f"{URL_MEMBERSTATS_BASE}/member/GetCarsDriven?custid=%s"
-URL_PERSONAL_BEST = f"{URL_MEMBERSTATS_BASE}/member/GetPersonalBests" \
-                    f"?carid=%s&custid=%s"
-URL_DRIVER_STATUS = f"{URL_MEMBERSITE_BASE}/member/GetDriverStatus?%s"
-URL_DRIVER_STATS = f"{URL_MEMBERSTATS_BASE}/member/GetDriverStats"
-URL_LASTRACE_STATS = f"{URL_MEMBERSTATS_BASE}/member/GetLastRacesStats" \
-                     f"?custid=%s"
-URL_RESULTS_ARCHIVE = f"{URL_MEMBERSTATS_BASE}/member/GetResults"
-URL_SEASON_STANDINGS = f"{URL_MEMBERSTATS_BASE}/member/GetSeasonStandings"
-URL_SEASON_STANDINGS2 = f"{URL_MEMBERSITE_BASE}/member/statsseries.jsp"
-URL_HOSTED_RESULTS = f"{URL_MEMBERSTATS_BASE}/member/GetPrivateSessionResults"
-URL_SELECT_SERIES = f"{URL_MEMBERSITE_BASE}/member/SelectSeries.do" \
-                    f"?&season=%s&view=undefined&nocache=%s"
-URL_SESSION_TIMES = f"{URL_MEMBERSITE_BASE}/member/GetSessionTimes"  # T-m-d
-URL_SERIES_RACERESULTS = f"{URL_MEMBERSTATS_BASE}/member/GetSeriesRaceResults"
-
-URL_GET_EVENTRESULTS_CSV = f"{URL_MEMBERSITE_BASE}/member/" \
-                           f"GetEventResultsAsCSV" \
-                           f"?subsessionid=%s" \
-                           f"&simsesnum=%s" \
-                           f"&includeSummary=1"
-URL_GET_EVENTRESULTS = f"{URL_MEMBERSITE_BASE}/member/EventResult.do" \
-                       f"?&subsessionid=%s"
-
-URL_GET_LAPS_SINGLE = f"{URL_MEMBERSITE_BASE}/member/GetLaps" \
-                      f"?&subsessionid=%s&groupid=%s&simsessnum=%s"
-URL_GET_LAPS_ALL = f"{URL_MEMBERSITE_BASE}/member/GetLapChart" \
-                   f"?&subsessionid=%s&carclassid=-1"
-
-URL_GET_PASTSERIES = f"{URL_MEMBERSITE_BASE}/member/PreviousSeasons.do"
-
-URL_GET_WORLDRECORD = "{URL_MEMBERSTATS_BASE}/member/GetWorldRecords" \
-                      "?seasonyear=%s&seasonquarter=%s&carid=%s&trackid=%s" \
-                      "&custid=%s&format=json&upperbound=1"
-
-
 # LOCATIONS
 LOC_ALL = "null"
