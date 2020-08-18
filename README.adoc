@@ -1,5 +1,12 @@
 = Paddock
 
+[cols="20,80"]
+|===
+| *Source Code*   | https://github.com/mikeholler/paddock
+| *Documentation* | https://mikeholler.github.io/paddock
+| *PyPi*          | https://pypi.org/project/paddock
+|===
+
 Programmatically retrieve data from the iRacing web APIs.
 
 You can use this class to send requests to iRacing service and get some valuable data like stats, race results, driver info, series info, etc. it requires valid login credentials (username and password) to access the service. 

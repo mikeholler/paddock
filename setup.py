@@ -4,7 +4,7 @@ setuptools.setup(
     name="paddock",
     version="0.1.0",
     description="iRacing Web SDK based off of ir_webstats",
-    url="https://github.com/mikeholler/unofficial-iracing-web-sdk",
+    url="https://github.com/mikeholler/paddock",
     author="Mike Holler",
     license="MIT",
     packages=setuptools.find_packages(),
