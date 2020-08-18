@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 import sys
@@ -9,7 +8,6 @@ from paddock._client import Paddock
 
 __all__ = [
     "IRacingIntegrationTest",
-    "async_test",
     "IRACING_USERNAME",
     "IRACING_PASSWORD",
 ]
@@ -46,34 +44,6 @@ client = Paddock(
     username=IRACING_USERNAME,
     password=IRACING_PASSWORD,
 )
-
-
-def async_test(f):
-    """
-    Function that can be used as a decorator for tests of async functions.
-
-    For example,
-
-        class MyTest(unittests.TestCase):
-            @async_test
-            async def test_example(self):
-                self.assertTrue(True)
-
-    :param f: the function to wrap
-    :return: the wrapped function
-
-    >>> class MyTest(unittest.TestCase):
-    ...     @async_test
-    ...     async def test_example(self):
-    ...         self.assertTrue(True)
-    """
-    def wrapper(*args, **kwargs):
-        coro = asyncio.coroutine(f)
-        future = coro(*args, **kwargs)
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(future)
-
-    return wrapper
 
 
 class IRacingIntegrationTest(unittest.TestCase):
