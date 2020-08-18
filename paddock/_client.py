@@ -10,7 +10,7 @@ from urllib.parse import urlencode as encode
 from io import StringIO
 
 from paddock import constants as ct
-from paddock.util import format_results
+from paddock._util import format_results
 
 
 logger = logging.getLogger(__name__)

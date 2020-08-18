@@ -16,3 +16,6 @@ class BasicTest(IRacingIntegrationTest):
             1, 13, 23, 24, 25, 36, 41, 44, 67, 72, 79, 88, 99, 100, 101, 103,
             106, 109, 112, 113, 117, 119, 120, 121,
         )
+
+    def test_all_laps(self):
+        results = self.client.event_laps_all(subsession=33938036)

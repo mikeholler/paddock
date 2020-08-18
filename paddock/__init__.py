@@ -1,5 +1,5 @@
 import logging
-from paddock.client import Paddock
+from paddock._client import Paddock
 import paddock.constants as constants
 from .__version__ import (
     __title__,

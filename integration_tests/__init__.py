@@ -4,7 +4,7 @@ import os
 import sys
 import unittest
 
-from paddock.client import Paddock
+from paddock._client import Paddock
 
 
 __all__ = [
