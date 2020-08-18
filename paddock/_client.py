@@ -87,6 +87,9 @@ class Paddock:
                            "Paddock will create a new session.", exc_info=True)
 
     def __save_session(self):
+        if self.__cookie_file is None:
+            return
+
         self.__cookie_file.parent.mkdir(parents=True, exist_ok=True)
 
         with self.__cookie_file.open("wb") as f:
