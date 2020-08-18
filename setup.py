@@ -15,7 +15,7 @@ setuptools.setup(
     description=about["__description__"],
     url=about["__url__"],
     author=about["__author__"],
-    email=about["__author_email__"],
+    author_email=about["__author_email__"],
     license=about["__license__"],
     packages=setuptools.find_packages(
         exclude=[
