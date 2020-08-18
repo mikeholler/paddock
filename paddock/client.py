@@ -1,54 +1,39 @@
-#!/usr/bin/python
-""" iRWebStats class. Check examples.py for example usage. """
-__author__ = "Jeyson Molina"
-__email__ = "jjmc82@gmail.com"
-__version__ = "1.3"
+import csv
+import datetime
+import json
+import re
+import requests
+import time
 
-import urllib
-import urllib.parse
-encode = urllib.parse.urlencode
+from urllib.parse import urlencode as encode
 from io import StringIO
 
-import requests
-import datetime
-import csv
-import time
-import re
-import ast
-import inspect
-import json
+from paddock import constants as ct
+from paddock.util import *
+from paddock import logger
 
-from . import constants as ct
-from .util import *
-from .decorator import decorator
-from urllib.parse import unquote
 
-class iRWebStats:
+class Paddock:
+    """
+    Use this class to connect to iRacing website and request some stats from
+    drivers, races and series. It needs to be logged in the iRacing membersite
+    so valid login credentials (user, password) are required. Most data is
+    returned in JSON format and converted to python dicts.
+    """
 
-    """ Use this class to connect to iRacing website and request some stats
-        from drivers, races and series. It needs to be logged in the
-        iRacing membersite so valid login crendentials (user, password)
-        are required. Most  data is returned in JSON format and
-        converted to python dicts. """
-
-    def __init__(self, verbose=True):
+    def __init__(self):
         self.last_cookie = ''
-        self.logged = False
+        self.logged_in = False
         self.custid = 0
-        self.verbose = verbose
-        self.TRACKS, self.CARS, self.DIVISION, self.CARCLASS, self.CLUB = {},\
-            {}, {}, {}, {}
 
     def __save_cookie(self):
         """ Saves the current cookie to disk from a successful login to avoid
             future login procedures and save time. A cookie usually last
             at least a couple of hours """
 
-        pprint("Saving cookie for future use", self.verbose)
-        o = open('cookie.tmp', 'w')
-        o.write(self.last_cookie)
-        o.write('\n' + str(self.custid))
-        o.close()
+        logger.debug("Saving cookie for future use")
+        with open("cookie.tmp", "w") as fp:
+            fp.write(f"{self.last_cookie}\n{str(self.custid)}")
 
     def __load_cookie(self):
         """ Loads a previously saved cookie """
@@ -60,59 +45,55 @@ class iRWebStats:
         except:
             return False
 
-    def login(self, username='', password='', get_info=False):
+    def login(self, username='', password=''):
         """ Log in to iRacing members site. If there is a valid cookie saved
             then it tries to use it to avoid a new login request. Returns
             True is the login was succesful and stores the customer id
             (custid) of the current login in self.custid. """
 
-        if self.logged:
+        if self.logged_in:
             return True
         data = {"username": username, "password": password, 'utcoffset': 300,
                 'todaysdate': ''}
         try:
-            pprint("Loggin in...", self.verbose)
+            logger.debug("Logging in...")
             # Check if there's a previous cookie
-            if (self.__load_cookie() and self.__check_cookie()):
+            if self.__load_cookie() and self.__check_cookie():
                 #  If previous cookie is valid
-                pprint("Previous cookie valid", self.verbose)
-                self.logged = True
-                if get_info:
-                  # Load iracing info
-                  self.__get_irservice_info(self.__req(ct.URL_IRACING_HOME,
-                                                       cookie=self.last_cookie))
+                logger.debug("Previous cookie valid")
+                self.logged_in = True
                 # TODO Should we cache this?
-                return self.logged
+                return self.logged_in
             else:
-                pprint("No cookie", self.verbose)
+                logger.debug("No cookie")
 
             self.custid = ''
             r = self.__req(ct.URL_IRACING_LOGIN, grab_cookie=True)
             r = self.__req(ct.URL_IRACING_LOGIN2, data,
                            cookie=self.last_cookie, grab_cookie=True)
-            pprint(r) 
+            logger.debug(r)
 
             if 'irsso_membersv2' in self.last_cookie:
-                self.logged = True
+                self.logged_in = True
                 r = self.__req(ct.URL_IRACING_HOME, cookie=self.last_cookie)
                 ind = r.index('js_custid')
                 custid = int(r[ind + 11: r.index(';', ind)])
                 self.custid = custid
                 self.__get_irservice_info(r)
                 self.__save_cookie()
-                pprint("Log in succesful", self.verbose)
+                logger.debug("Log in succesful")
             else:
-                pprint("Invalid Login (user: %s). Please check your\
-                        credentials" % (username), self.verbose)
-                self.logged = False
+                logger.debug("Invalid Login (user: %s). Please check your\
+                        credentials" % (username))
+                self.logged_in = False
 
         except Exception as e:
-            pprint(("Error on Login Request", e), self.verbose)
-            self.logged = False
-        return self.logged
+            logger.debug("Error on Login Request", exc_info=True)
+            self.logged_in = False
+        return self.logged_in
 
     def logout(self):
-        self.logged = False  # TODO proper logout
+        self.logged_in = False  # TODO proper logout
 
     def __check_cookie(self):
         """ Checks the cookie by testing a request response"""
@@ -126,8 +107,6 @@ class iRWebStats:
               useget=False):
         """ Creates and sends the HTTP requests to iRacing site """
 
-        # Sleep/wait to avoid flooding the service with requests
-        time.sleep(ct.WAIT_TIME)  # 0.3 seconds
         h = ct.HEADERS.copy()
         if cookie is not None:  # Send the cookie
             h['Cookie'] = cookie
@@ -154,8 +133,7 @@ class iRWebStats:
             cars, series, etc. Check self.TRACKS, self.CARS, self.DIVISION
             , self.CARCLASS, self.CLUB. """
 
-        pprint("Getting iRacing Service info (cars, tracks, etc.)",
-               self.verbose)
+        logger.debug("Getting iRacing Service info (cars, tracks, etc.)")
         items = {"TRACKS":  "TrackListing", "CARS": "CarListing",
                  "CARCLASS":  "CarClassListing", "CLUBS": "ClubListing",
                  "SEASON": "SeasonListing", "DIVISION": "DivisionListing",
@@ -172,7 +150,7 @@ class iRWebStats:
                 setattr(self, i, o)  # i.e self.TRACKS = o
 
             except Exception as e:
-                pprint("Error ocurred. Couldn't get {}".format(i), self.verbose)
+                logger.debug(f"Error occurred. Couldn't get {i}", exc_info=True)
 
     def _load_irservice_var(self, varname, resp, appear=1):
         str2find = "var " + varname + " = extractJSON('"
@@ -186,7 +164,6 @@ class iRWebStats:
             o = {ele['id']: ele for ele in o}
         return o
 
-    @logged_in
     def iratingchart(self, custid=None, category=ct.IRATING_ROAD_CHART):
         """ Gets the irating data of a driver using its custom id (custid)
             that generates the chart located in the driver's profile. """
@@ -195,36 +172,29 @@ class iRWebStats:
                        cookie=self.last_cookie)
         return parse(r)
 
-    @logged_in
     def driver_counts(self):
         """ Gets list of connected myracers and notifications. """
         r = self.__req(ct.URL_DRIVER_COUNTS, cookie=self.last_cookie)
         return parse(r)
 
-    @logged_in
     def career_stats(self, custid=None):
         """ Gets career stats (top5, top 10, etc.) of driver (custid)."""
         r = self.__req(ct.URL_CAREER_STATS % (custid),
                        cookie=self.last_cookie)
         return parse(r)[0]
 
-    @logged_in
     def yearly_stats(self, custid=None):
         """ Gets yearly stats (top5, top 10, etc.) of driver (custid)."""
         r = self.__req(ct.URL_YEARLY_STATS % (custid),
                        cookie=self.last_cookie)
-        # tofile(r)
         return parse(r)
 
-    @logged_in
     def cars_driven(self, custid=None):
         """ Gets list of cars driven by driver (custid)."""
         r = self.__req(ct.URL_CARS_DRIVEN % (custid),
                        cookie=self.last_cookie)
-        # tofile(r)
         return parse(r)
 
-    @logged_in
     def personal_best(self, custid=None, carid=0):
         """ Personal best times of driver (custid) using car
             (carid. check self.CARS) set in official events."""
@@ -232,24 +202,20 @@ class iRWebStats:
                        cookie=self.last_cookie)
         return parse(r)
 
-    @logged_in
     def driverdata(self, drivername):
         """ Personal data of driver  using its name in the request
             (i.e drivername="Victor Beltran"). """
 
         r = self.__req(ct.URL_DRIVER_STATUS % (encode({
             'searchTerms': drivername})), cookie=self.last_cookie)
-        # tofile(r)
         return parse(r)
 
-    @logged_in
     def lastrace_stats(self, custid=None):
         """ Gets stats of last races (10 max?) of driver (custid)."""
         r = self.__req(ct.URL_LASTRACE_STATS % (custid),
                        cookie=self.last_cookie)
         return parse(r)
 
-    @logged_in
     def driver_search(self, race_type=ct.RACE_TYPE_ROAD, location=ct.LOC_ALL,
                       license=(ct.LIC_ROOKIE, ct.ALL), irating=(0, ct.ALL),
                       ttrating=(0, ct.ALL), avg_start=(0, ct.ALL),
@@ -303,15 +269,10 @@ class iRWebStats:
             drivers = format_results(drivers, header)
 
         except Exception as e:
-            pprint(("Error fetching driver search data. Error:", e),
-                   self.verbose)
+            logger.debug("Error fetching driver search data.", exc_info=True)
 
         return drivers, total_results
 
-    def test(self, a, b=2, c=3):
-        return a, b, c
-
-    @logged_in
     def results_archive(self, custid=None, race_type=ct.RACE_TYPE_ROAD,
                         event_types=ct.ALL, official=ct.ALL,
                         license_level=ct.ALL, car=ct.ALL, track=ct.ALL,
@@ -391,15 +352,13 @@ class iRWebStats:
 
         return results, total_results
 
-    @logged_in
     def all_seasons(self):
         """ Get All season data available at Series Stats page
         """
-        pprint("Getting iRacing Seasons with Stats")
+        logger.debug("Getting iRacing Seasons with Stats")
         resp = self.__req(ct.URL_SEASON_STANDINGS2)
         return self._load_irservice_var("SeasonListing", resp)
 
-    @logged_in
     def season_standings(self, season, carclass, club=ct.ALL, raceweek=ct.ALL,
                          division=ct.ALL, sort=ct.SORT_POINTS,
                          order=ct.ORDER_DESC, page=1):
@@ -424,7 +383,6 @@ class iRWebStats:
 
         return results, total_results
 
-    @logged_in
     def hosted_results(self, session_host=None, session_name=None,
                        date_range=None, sort=ct .SORT_TIME,
                        order=ct.ORDER_DESC, page=1):
@@ -453,13 +411,11 @@ class iRWebStats:
             data['starttime_upperbound'] = tc(date_range[1])
 
         r = self.__req(ct.URL_HOSTED_RESULTS, data=data)
-        # tofile(r)
         res = parse(r)
         total_results = res['rowcount']
         results = res['rows']  # doesn't need format_results
         return results, total_results
 
-    @logged_in
     def session_times(self, series_season, start, end):
         """ Gets Current and future sessions (qualy, practice, race)
             of series_season """
@@ -467,7 +423,6 @@ class iRWebStats:
                        'season': series_season}, useget=True)
         return parse(r)
 
-    @logged_in
     def current_series_images(self):
         """ Gets Current series images
         """
@@ -486,7 +441,6 @@ class iRWebStats:
 
         return series_images
 
-    @logged_in
     def season_race_sessions(self, season, raceweek):
         """ Gets races sessions for season in specified raceweek """
 
@@ -502,7 +456,6 @@ class iRWebStats:
             print(res)
             return None
 
-    @logged_in
     def event_results(self, subsession, sessnum=0):
         """ Gets the event results (table of positions, times, etc.). The
             event is identified by a subsession id. """
@@ -524,7 +477,6 @@ class iRWebStats:
 
         return event_info, results
 
-    @logged_in
     def event_results_web(self, subsession):
         """ Get the event results from the web page rather than CSV.
         Required to get ttRating for time trials """
@@ -559,7 +511,6 @@ class iRWebStats:
 
         return out
 
-    @logged_in
     def get_qual_sessnum(self, subsession):
         """ Get the qualifying session number from the results web page """
 
@@ -643,8 +594,9 @@ class iRWebStats:
 
         return record
 
+
 if __name__ == '__main__':
-    irw = iRWebStats()
+    irw = Paddock()
     user, passw = ('username', 'password')
     irw.login(user, passw)
     print("Cars Driven", irw.cars_driven())  # example usage

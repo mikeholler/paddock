@@ -1,15 +1,18 @@
-.idea
-*.pyc
-*.swp
-*.py~
-*.zip
-*.rar
-*.html~
-*.htm~
-__pycache__
-*.tmp
-.env
+# Standard
+build/
 
-build
-dist
-*.egg-info
+# IntelliJ
+*.iml
+.idea
+
+# Python
+*.pyc
+__pycache__
+dist/
+*.egg-info/
+
+# Virtual Environments
+*.venv/
+
+.env
+cookie.tmp
