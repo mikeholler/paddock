@@ -477,8 +477,10 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code class="language-python" data-lang="python">from paddock import Paddock
-paddock = Paddock()
-paddock.login(username="max.verstappen@redbull.com", password="hunter2")
+paddock = Paddock(
+    username="max.verstappen@redbull.com",
+    password="hunter2",
+)
 print (paddock.cars_driven())</code></pre>
 </div>
 </div>
@@ -487,7 +489,7 @@ print (paddock.cars_driven())</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2020-08-18 03:51:47 UTC
+Last updated 2020-08-18 04:56:10 UTC
 </div>
 </div>
 </body>
