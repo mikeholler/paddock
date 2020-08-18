@@ -1,4 +1,5 @@
 from paddock._client import Paddock
+from paddock._response import PaddockResponse
 import paddock.constants as constants
 from .__version__ import (
     __title__,
@@ -22,5 +23,6 @@ __all__ = [
     "__license__",
     "__copyright__",
     "Paddock",
+    "PaddockResponse",
     "constants",
 ]

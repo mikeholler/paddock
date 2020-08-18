@@ -10,6 +10,8 @@ import time
 from io import StringIO
 from pathlib import Path
 from typing import (
+    Any,
+    List,
     Optional,
     Union,
 )
@@ -17,6 +19,7 @@ from urllib.parse import urlencode as encode
 
 from paddock import constants as ct
 from paddock._util import format_results
+from paddock._response import PaddockResponse
 
 
 logger = logging.getLogger(__name__)
@@ -212,10 +215,20 @@ class Paddock:
         r = self.__request(method="GET", url=ct.URL_YEARLY_STATS % custid)
         return r.json()
 
-    def cars_driven(self, custid=None):
+    def cars_driven(self, custid: int) -> PaddockResponse[List[int]]:
         """ Gets list of cars driven by driver (custid)."""
-        r = self.__request(method="GET", url=ct.URL_CARS_DRIVEN % custid)
-        return r.json()
+        r = self.__request(
+            method="GET",
+            url="https://members.iracing.com/memberstats/member/GetCarsDriven",
+            params={"custid": str(custid)}
+        )
+
+        # TODO: Figure out how to model List[int] in marshmallow for
+        #       consistency.
+        return PaddockResponse(
+            response=r,
+            converter=lambda: r.json()
+        )
 
     def personal_best(self, custid=None, carid=0):
         """ Personal best times of driver (custid) using car
@@ -669,3 +682,7 @@ class Paddock:
             record = None
 
         return record
+
+
+def url_path_join(*parts: Any) -> str:
+    return "/".join(str(p).strip("/") for p in parts)

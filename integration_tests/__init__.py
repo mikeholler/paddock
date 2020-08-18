@@ -10,7 +10,10 @@ __all__ = [
     "IRacingIntegrationTest",
     "IRACING_USERNAME",
     "IRACING_PASSWORD",
+    "FAKE_CUSTOMER_ID",
 ]
+
+here = os.path.abspath(os.path.dirname(__file__))
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -34,6 +37,7 @@ def get_required_env(key: str) -> str:
 
 IRACING_USERNAME = get_required_env("IRACING_USERNAME")
 IRACING_PASSWORD = get_required_env("IRACING_PASSWORD")
+FAKE_CUSTOMER_ID = 999_999_999
 
 # We create a singleton client that we use for all tests to avoid constantly
 # re-authenticating. iRacing may see constant re-authentication as suspicious
@@ -43,6 +47,7 @@ IRACING_PASSWORD = get_required_env("IRACING_PASSWORD")
 client = Paddock(
     username=IRACING_USERNAME,
     password=IRACING_PASSWORD,
+    cookie_file="integration_test-cookies.pickle"
 )
 
 
@@ -52,4 +57,11 @@ class IRacingIntegrationTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self.client = client
+        self.paddock = Paddock(
+            username=IRACING_USERNAME,
+            password=IRACING_PASSWORD,
+            cookie_file=os.path.join(here, "integration_test-cookies.pickle")
+        )
+
+    def tearDown(self) -> None:
+        self.paddock.close()

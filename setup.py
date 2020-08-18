@@ -33,5 +33,9 @@ setuptools.setup(
     install_requires=[
         "decorator>=4.4.2,<5",
         "requests>=2.24,<3",
+        "marshmallow-dataclass>=7.2,<8",
+        "marshmallow-enum>=1.5,<2",
+        "marshmallow-oneofschema>=2.0,<3",
+        "marshmallow>=3.3,<4",
     ],
 )
