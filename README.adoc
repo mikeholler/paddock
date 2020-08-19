@@ -1,5 +1,12 @@
 = Paddock
 
+[.left]
+image::https://github.com/mikeholler/paddock/workflows/Unit%20Test/badge.svg[]
+[.left]
+image::https://github.com/mikeholler/paddock/workflows/Integration%20Test/badge.svg[]
+[.left]
+image::https://github.com/mikeholler/paddock/workflows/Lint/badge.svg[]
+
 [cols="20,80"]
 |===
 | *Source Code*   | https://github.com/mikeholler/paddock
