@@ -1,4 +1,5 @@
 = Paddock
+:toc: left
 
 [.left]
 image::https://github.com/mikeholler/paddock/workflows/Unit%20Test/badge.svg[]
