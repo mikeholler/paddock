@@ -20,6 +20,7 @@ from urllib.parse import urlencode as encode
 from paddock import constants as ct
 from paddock._util import format_results
 from paddock._response import PaddockResponse
+from paddock import models
 
 
 logger = logging.getLogger(__name__)
@@ -181,7 +182,8 @@ class Paddock:
                     exc_info=True
                 )
 
-    def _load_irservice_var(self, varname, resp, appear=1):
+    @staticmethod
+    def _load_irservice_var(varname, resp, appear=1):
         str2find = "var " + varname + " = extractJSON('"
         ind1 = -1
         for _ in range(appear):
@@ -192,6 +194,43 @@ class Paddock:
         if varname not in ("SeasonListing", "YEARANDQUARTER"):
             o = {ele['id']: ele for ele in o}
         return o
+
+    def all_cars(self, farm_id: int = 11) -> PaddockResponse[models.CarRecord]:
+        """
+
+        :param farm_id: server farm ID -- default should be fine, as all public
+            servers should be on the same version of iRacing and have access to
+            the same cars.
+        :return:
+        """
+        r = self.__request(
+            method="GET",
+            url="https://members.iracing.com/membersite/member/GetFarmCars",
+            params={"farmID": farm_id},
+        )
+
+        return PaddockResponse.json(
+            response=r,
+            schema=models.CarRecord.Schema(many=True)
+        )
+
+    def cars_driven(self, customer_id: int) -> PaddockResponse[List[int]]:
+        """
+        Get a list of cars driven for the given customer ID.
+
+        :param customer_id: id of customer to list cars
+        :return: IDs of cars drives, as integers
+        """
+        r = self.__request(
+            method="GET",
+            url="https://members.iracing.com/memberstats/member/GetCarsDriven",
+            params={"custid": str(customer_id)}
+        )
+
+        return PaddockResponse(
+            response=r,
+            converter=lambda: r.json()
+        )
 
     def iratingchart(self, custid=None, category=ct.IRATING_ROAD_CHART):
         """ Gets the irating data of a driver using its custom id (custid)
@@ -220,36 +259,24 @@ class Paddock:
         """ Gets career stats (top5, top 10, etc.) of driver (custid)."""
         r = self.__request(
             method="GET",
-            url="https://members.iracing.com/memberstats/member/GetCareerStats",
+            url="https://members.iracing.com/memberstats/member/"
+                "GetCareerStats",
             params={"custid": custid},
         )
         return r.json()[0]
 
     def yearly_stats(self, custid=None):
         """ Gets yearly stats (top5, top 10, etc.) of driver (custid)."""
-        URL_YEARLY_STATS = "https://members.iracing.com/memberstats/member/GetYearlyStats?custid=%s"
+        URL_YEARLY_STATS = "https://members.iracing.com/memberstats/member/" \
+                           "GetYearlyStats?custid=%s"
         r = self.__request(method="GET", url=URL_YEARLY_STATS % custid)
         return r.json()
-
-    def cars_driven(self, custid: int) -> PaddockResponse[List[int]]:
-        """ Gets list of cars driven by driver (custid)."""
-        r = self.__request(
-            method="GET",
-            url="https://members.iracing.com/memberstats/member/GetCarsDriven",
-            params={"custid": str(custid)}
-        )
-
-        # TODO: Figure out how to model List[int] in marshmallow for
-        #       consistency.
-        return PaddockResponse(
-            response=r,
-            converter=lambda: r.json()
-        )
 
     def personal_best(self, custid=None, carid=0):
         """ Personal best times of driver (custid) using car
             (carid. check self.CARS) set in official events."""
-        URL_PERSONAL_BEST = "https://members.iracing.com/memberstats/member/GetPersonalBests" \
+        URL_PERSONAL_BEST = "https://members.iracing.com/memberstats/member/" \
+                            "GetPersonalBests" \
                             "?carid=%s&custid=%s"
         r = self.__request(
             method="GET",
@@ -260,15 +287,24 @@ class Paddock:
     def driverdata(self, drivername):
         """ Personal data of driver  using its name in the request
             (i.e drivername="Victor Beltran"). """
-        URL_DRIVER_STATUS = "https://members.iracing.com/membersite/member/GetDriverStatus?%s"
+        URL_DRIVER_STATUS = "https://members.iracing.com/membersite/member/" \
+                            "GetDriverStatus?%s"
         r = self.__request(method="GET", url=URL_DRIVER_STATUS % (encode({
             'searchTerms': drivername})))
         return r.json()
 
     def lastrace_stats(self, custid=None):
         """ Gets stats of last races (10 max?) of driver (custid)."""
-        URL_LASTRACE_STATS = "https://members.iracing.com/memberstats/member/GetLastRacesStats?custid=%s"
-        r = self.__request(method="GET", url=URL_LASTRACE_STATS % custid)
+        r = self.__request(
+            method="GET",
+            url=url_path_join(
+                "https://members.iracing.com/memberstats/member/",
+                "GetLastRacesStats"
+            ),
+            params={
+                "custid": custid
+            }
+        )
         return r.json()
 
     def driver_search(self, custid, race_type=ct.RACE_TYPE_ROAD,
@@ -311,10 +347,12 @@ class Paddock:
         total_results, drivers = 0, {}
 
         try:
-            URL_DRIVER_STATS = "https://members.iracing.com/memberstats/member/GetDriverStats"
             r = self.__request(
                 method="POST",
-                url=URL_DRIVER_STATS,
+                url=url_path_join(
+                    "https://members.iracing.com/memberstats/member/",
+                    "GetDriverStats"
+                ),
                 data=data
             )
             res = r.json()
@@ -407,7 +445,8 @@ class Paddock:
                              ct.LIC_D, ct.LIC_PRO, ct.LIC_PRO_WC)
         for v in license_level:
             data[lic_vars[v]] = 1
-        URL_RESULTS_ARCHIVE = "https://members.iracing.com/memberstats/member/GetResults"
+        URL_RESULTS_ARCHIVE = "https://members.iracing.com/memberstats/" \
+                              "member/GetResults"
         r = self.__request(
             method="POST",
             url=URL_RESULTS_ARCHIVE,
@@ -429,7 +468,8 @@ class Paddock:
         """ Get All season data available at Series Stats page
         """
         logger.debug("Getting iRacing Seasons with Stats")
-        URL_SEASON_STANDINGS2 = "https://members.iracing.com/membersite/member/statsseries.jsp"
+        URL_SEASON_STANDINGS2 = "https://members.iracing.com/membersite/" \
+                                "member/statsseries.jsp"
         resp = self.__request(method="GET", url=URL_SEASON_STANDINGS2)
         return self._load_irservice_var("SeasonListing", resp.text)
 
@@ -448,7 +488,8 @@ class Paddock:
         data = {'sort': sort, 'order': order, 'seasonid': season,
                 'carclassid': carclass, 'clubid': club, 'raceweek': raceweek,
                 'division': division, 'start': lowerbound, 'end': upperbound}
-        URL_SEASON_STANDINGS = "https://members.iracing.com/memberstats/member/GetSeasonStandings"
+        URL_SEASON_STANDINGS = "https://members.iracing.com/memberstats/" \
+                               "member/GetSeasonStandings"
         r = self.__request(
             method="POST",
             url=URL_SEASON_STANDINGS,
@@ -492,7 +533,8 @@ class Paddock:
             # multiplied by 1000
             data['starttime_upperbound'] = tc(date_range[1])
 
-        URL_HOSTED_RESULTS = "https://members.iracing.com/memberstats/member/GetPrivateSessionResults"
+        URL_HOSTED_RESULTS = "https://members.iracing.com/memberstats/" \
+                             "member/GetPrivateSessionResults"
         r = self.__request(method="POST", url=URL_HOSTED_RESULTS, data=data)
         res = r.json()
         total_results = res['rowcount']
@@ -502,10 +544,12 @@ class Paddock:
     def session_times(self, series_season, start, end):
         """ Gets Current and future sessions (qualy, practice, race)
             of series_season """
-        URL_SESSION_TIMES = "https://members.iracing.com/membersite/member/GetSessionTimes"  # T-m-d
         r = self.__request(
             method="GET",
-            url=URL_SESSION_TIMES,
+            url=url_path_join(
+                "https://members.iracing.com/membersite/member/",
+                "GetSessionTimes"
+            ),
             params={
                 'start': start,
                 'end': end,
@@ -540,11 +584,12 @@ class Paddock:
 
     def season_race_sessions(self, season, raceweek):
         """ Gets races sessions for season in specified raceweek """
-
-        URL_SERIES_RACERESULTS = "https://members.iracing.com/memberstats/member/GetSeriesRaceResults"
         r = self.__request(
             method="POST",
-            url=URL_SERIES_RACERESULTS,
+            url=url_path_join(
+                "https://members.iracing.com/memberstats/member/",
+                "GetSeriesRaceResults"
+            ),
             data={'seasonid': season, 'raceweek': raceweek}  # TODO no bounds?
         )
         res = r.json()
@@ -561,7 +606,10 @@ class Paddock:
         """ Gets the event results (table of positions, times, etc.). The
             event is identified by a subsession id. """
 
-        URL_GET_EVENTRESULTS_CSV = "https://members.iracing.com/membersite/member/GetEventResultsAsCSV?subsessionid=%s&simsesnum=%s&includeSummary=1"
+        URL_GET_EVENTRESULTS_CSV = "https://members.iracing.com/membersite/" \
+                                   "member/GetEventResultsAsCSV" \
+                                   "?subsessionid=%s&simsesnum=%s" \
+                                   "&includeSummary=1"
         # TODO: encode/decode seems unnecessary
         csv_text = self.__request(
             method="GET",
@@ -592,7 +640,8 @@ class Paddock:
     def event_results_web(self, subsession):
         """ Get the event results from the web page rather than CSV.
         Required to get ttRating for time trials """
-        URL_GET_EVENTRESULTS = "https://members.iracing.com/membersite/member/EventResult.do?&subsessionid=%s"
+        URL_GET_EVENTRESULTS = "https://members.iracing.com/membersite/" \
+                               "member/EventResult.do?&subsessionid=%s"
         r = self.__request(
             method="GET",
             url=URL_GET_EVENTRESULTS % subsession
@@ -633,7 +682,8 @@ class Paddock:
 
     def get_qual_sessnum(self, subsession):
         """ Get the qualifying session number from the results web page """
-        URL_GET_EVENTRESULTS = "https://members.iracing.com/membersite/member/EventResult.do?&subsessionid=%s"
+        URL_GET_EVENTRESULTS = "https://members.iracing.com/membersite/" \
+                               "member/EventResult.do?&subsessionid=%s"
         r = self.__request(
             method="GET",
             url=URL_GET_EVENTRESULTS % subsession
@@ -655,20 +705,23 @@ class Paddock:
         else:
             return None
 
-    def subsession_results(self, subsession):
-        """ Get the results for a time trial event from the web page.
-        """
-
-        r = self.__request(
-            method="GET",
-            url=URL_GET_SUBSESSRESULTS % subsession
-        )
-        return r.json()['rows']
+    # TODO: Fix! URL_GET_SUBSESSRESULTS was never in the fork.
+    # def subsession_results(self, subsession):
+    #     """ Get the results for a time trial event from the web page.
+    #     """
+    #
+    #     r = self.__request(
+    #         method="GET",
+    #         url=URL_GET_SUBSESSRESULTS % subsession
+    #     )
+    #     return r.json()['rows']
 
     def event_laps_single(self, subsession, custid, sessnum=0):
         """ Get the lap times for an event from the web page.
         """
-        URL_GET_LAPS_SINGLE = "https://members.iracing.com/membersite/member/GetLaps?&subsessionid=%s&groupid=%s&simsessnum=%s"
+        URL_GET_LAPS_SINGLE = "https://members.iracing.com/membersite/" \
+                              "member/GetLaps?&subsessionid=%s" \
+                              "&groupid=%s&simsessnum=%s"
         r = self.__request(
             method="GET",
             url=URL_GET_LAPS_SINGLE % (subsession, custid, sessnum)
@@ -678,8 +731,14 @@ class Paddock:
     def event_laps_all(self, subsession):
         """ Get the lap times for an event from the web page.
         """
-        URL_GET_LAPS_ALL = "https://members.iracing.com/membersite/member/GetLapChart?&subsessionid=%s&carclassid=-1"
-        r = self.__request(method="GET", url=URL_GET_LAPS_ALL % subsession)
+        r = self.__request(
+            method="GET",
+            url="https://members.iracing.com/membersite/member/GetLapChart",
+            params={
+                "subsessionid": subsession,
+                "carclassid": -1,
+            },
+        )
         return r.json()
 
     def best_lap(self, subsessionid, custid):
@@ -694,11 +753,22 @@ class Paddock:
         """ Get the world record lap time for certain car in a season.
         """
 
-        URL_GET_WORLDRECORD = "https://members.iracing.com/memberstats/member/GetWorldRecords?seasonyear=%s&seasonquarter=%s&carid=%s&trackid=%s&custid=%s&format=json&upperbound=1"
         r = self.__request(
-            method="GET", url=URL_GET_WORLDRECORD % (
-                seasonyear, seasonquarter, carid, trackid, custid
-            ))
+            method="GET",
+            url=url_path_join(
+                "https://members.iracing.com/memberstats/member/",
+                "GetWorldRecords",
+            ),
+            params={
+                "seasonyear": seasonyear,
+                "seasonquarter": seasonquarter,
+                "carid": carid,
+                "trackid": trackid,
+                "custid": custid,
+                "format": "json",
+                "upperbound": 1,
+            }
+        )
         res = r.json()
 
         header = res['m']

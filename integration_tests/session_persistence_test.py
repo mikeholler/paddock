@@ -25,7 +25,9 @@ class SessionPersistenceTest(unittest.TestCase):
             password=IRACING_PASSWORD,
             cookie_file=self.cookie_file,
         ) as paddock1:
-            assert_that(paddock1.cars_driven(custid=404787).body()).contains(
+            assert_that(
+                paddock1.cars_driven(customer_id=404787).body()
+            ).contains(
                 1, 13, 23, 24, 25, 36, 41, 44, 67, 72, 79, 88, 99, 100, 101,
                 103, 106, 109, 112, 113, 117, 119, 120, 121,
             )
@@ -35,7 +37,9 @@ class SessionPersistenceTest(unittest.TestCase):
             password=IRACING_PASSWORD,
             cookie_file=self.cookie_file,
         ) as paddock2:
-            assert_that(paddock2.cars_driven(custid=404787).body()).contains(
+            assert_that(
+                paddock2.cars_driven(customer_id=404787).body()
+            ).contains(
                 1, 13, 23, 24, 25, 36, 41, 44, 67, 72, 79, 88, 99, 100, 101,
                 103, 106, 109, 112, 113, 117, 119, 120, 121,
             )
@@ -49,7 +53,9 @@ class SessionEphemeralTest(unittest.TestCase):
                 password=IRACING_PASSWORD,
                 cookie_file=None
         ) as paddock1:
-            assert_that(paddock1.cars_driven(custid=404787).body()).contains(
+            assert_that(
+                paddock1.cars_driven(customer_id=404787).body()
+            ).contains(
                 1, 13, 23, 24, 25, 36, 41, 44, 67, 72, 79, 88, 99, 100, 101,
                 103, 106, 109, 112, 113, 117, 119, 120, 121,
             )
@@ -60,7 +66,9 @@ class SessionEphemeralTest(unittest.TestCase):
             password=IRACING_PASSWORD,
             cookie_file=None
         ) as paddock1:
-            assert_that(paddock1.cars_driven(custid=404787).body()).contains(
+            assert_that(
+                paddock1.cars_driven(customer_id=404787).body()
+            ).contains(
                 1, 13, 23, 24, 25, 36, 41, 44, 67, 72, 79, 88, 99, 100, 101,
                 103, 106, 109, 112, 113, 117, 119, 120, 121,
             )
