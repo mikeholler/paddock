@@ -145,7 +145,11 @@ class Paddock:
 
         r = self.__session.request(*args, **kwargs)
 
-        if 400 <= r.status_code <= 599 or r.is_redirect:
+        if (
+            400 <= r.status_code <= 599
+            # or len(r.history) > 0 and "notauthed" in r.request.url
+            or r.is_redirect
+        ):
             logger.info(
                 "Request was redirected, indicating that the cookies are "
                 "invalid. Initiating authentication and retrying the request."
@@ -233,6 +237,26 @@ class Paddock:
         return PaddockResponse.json(
             response=r,
             schema=models.TrackConfigurationRecord.Schema(many=True)
+        )
+
+    def all_seasons(self, only_active: bool):
+        r = self.__request(
+            method="GET",
+            url="https://members.iracing.com/membersite/member/GetSeasons",
+            params={
+                "onlyActive": 1 if only_active else 0,
+                "fields": ','.join([
+                    "year", "quarter", "seriesshortname", "seriesid", "active",
+                    "catid", "carclasses", "tracks", "start", "end", "cars",
+                    "raceweek", "category", "serieslicgroupid", "carid",
+                    "seasonid", "seriesid", "licenseeligible", "islite"
+                ])
+            }
+        )
+
+        return PaddockResponse.json(
+            response=r,
+            schema=models.Season.Schema(many=True)
         )
 
     def cars_driven(self, customer_id: int) -> PaddockResponse[List[int]]:
@@ -485,15 +509,15 @@ class Paddock:
 
         return results, total_results
 
-    def all_seasons(self):
-        """ Get All season data available at Series Stats page
-        """
-        logger.debug("Getting iRacing Seasons with Stats")
-        URL_SEASON_STANDINGS2 = "https://members.iracing.com/membersite/" \
-                                "member/statsseries.jsp"
-        resp = self.__request(method="GET", url=URL_SEASON_STANDINGS2)
-        return self._load_irservice_var("SeasonListing", resp.text)
-
+    # def all_seasons(self):
+    #     """ Get All season data available at Series Stats page
+    #     """
+    #     logger.debug("Getting iRacing Seasons with Stats")
+    #     URL_SEASON_STANDINGS2 = "https://members.iracing.com/membersite/" \
+    #                             "member/statsseries.jsp"
+    #     resp = self.__request(method="GET", url=URL_SEASON_STANDINGS2)
+    #     return self._load_irservice_var("SeasonListing", resp.text)
+    #
     def season_standings(self, season, carclass, club=ct.ALL, raceweek=ct.ALL,
                          division=ct.ALL, sort=ct.SORT_POINTS,
                          order=ct.ORDER_DESC, page=1):

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-from enum import Enum
 from marshmallow_enum import EnumField
 from typing import Optional
+from paddock.models._common import Category
 from paddock._dataclasses import require_kwargs_on_init
 from paddock._marshmallow import (
     JsonModelBaseclass,
@@ -12,14 +12,8 @@ from paddock._marshmallow import (
 
 __all__ = [
     "CarRecord",
+    "TrackConfigurationRecord",
 ]
-
-
-class Category(Enum):
-    oval = 1
-    road = 2
-    dirt_oval = 3
-    dirt_road = 4
 
 
 @dataclass(frozen=True)
