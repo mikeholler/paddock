@@ -214,6 +214,27 @@ class Paddock:
             schema=models.CarRecord.Schema(many=True)
         )
 
+    def all_tracks(
+            self, farm_id: int = 11
+    ) -> PaddockResponse[models.TrackConfigurationRecord]:
+        """
+
+        :param farm_id: server farm ID -- default should be fine, as all public
+            servers should be on the same version of iRacing and have access to
+            the same cars.
+        :return:
+        """
+        r = self.__request(
+            method="GET",
+            url="https://members.iracing.com/membersite/member/GetFarmTracks",
+            params={"farmID": farm_id},
+        )
+
+        return PaddockResponse.json(
+            response=r,
+            schema=models.TrackConfigurationRecord.Schema(many=True)
+        )
+
     def cars_driven(self, customer_id: int) -> PaddockResponse[List[int]]:
         """
         Get a list of cars driven for the given customer ID.

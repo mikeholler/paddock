@@ -1,19 +1,17 @@
 import marshmallow as m
 from marshmallow_dataclass import class_schema
 from typing import (
-    Any,
-    Dict,
-    Mapping,
     Optional,
     Type,
 )
-from urllib.parse import unquote_plus
+from urllib.parse import quote_plus, unquote_plus
 
 
 __all__ = [
     "JsonModelMetaclass",
     "JsonModelBaseclass",
     "QuotedStringField",
+    "NumericBooleanField",
 ]
 
 
@@ -32,24 +30,45 @@ class JsonModelBaseclass(metaclass=JsonModelMetaclass):
 
 # noinspection DuplicatedCode
 class QuotedStringField(m.fields.Field):
-    def _serialize(
-            self,
-            value: Optional[str],
-            attr: str,
-            obj: Any,
-            **kwargs: Dict[str, Any]  # Type: ignore
-    ) -> Optional[str]:
-        if value is None:
-            return None
-        return
 
-    def _deserialize(
+    def __init__(
             self,
-            value: Optional[str],
-            attr: Optional[str],
-            data: Optional[Mapping[str, Any]],
-            **kwargs: Dict[str, Any]
-    ) -> Optional[str]:
+            deserialize_empty_as_none: bool = False,
+            *args, **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.deserialize_empty_as_none = deserialize_empty_as_none
+
+    def _serialize(self, value, attr, obj, **kwargs) -> Optional[str]:
         if value is None:
             return None
-        return unquote_plus(value)
+        else:
+            return quote_plus(value)
+
+    def _deserialize(self, value, attr, data, **kwargs) -> Optional[str]:
+        if value is None:
+            return None
+        elif self.deserialize_empty_as_none and len(value) == 0:
+            return None
+        else:
+            return unquote_plus(value)
+
+
+# noinspection DuplicatedCode
+class NumericBooleanField(m.fields.Field):
+
+    def _serialize(self, value, attr, obj, **kwargs) -> Optional[int]:
+        if value is None:
+            return None
+        else:
+            return 1 if value else 0
+
+    def _deserialize(self, value, attr, data, **kwargs) -> Optional[bool]:
+        if value is None:
+            return None
+        elif value == 0:
+            return False
+        elif value == 1:
+            return True
+        else:
+            raise ValueError(f"Expected 0, 1, or None, found: {value}")

@@ -39,17 +39,6 @@ IRACING_USERNAME = get_required_env("IRACING_USERNAME")
 IRACING_PASSWORD = get_required_env("IRACING_PASSWORD")
 FAKE_CUSTOMER_ID = 999_999_999
 
-# We create a singleton client that we use for all tests to avoid constantly
-# re-authenticating. iRacing may see constant re-authentication as suspicious
-# activity, we see the disadvantages of 1) using a singleton and 2) sharing
-# state between tests are outweighed by being good citizens to the iRacing
-# platform.
-client = Paddock(
-    username=IRACING_USERNAME,
-    password=IRACING_PASSWORD,
-    cookie_file="integration_test-cookies.pickle"
-)
-
 
 class IRacingIntegrationTest(unittest.TestCase):
     """
