@@ -1,3 +1,4 @@
+import datetime as dt
 import marshmallow as m
 from marshmallow_dataclass import class_schema
 from typing import (
@@ -12,6 +13,7 @@ __all__ = [
     "JsonModelBaseclass",
     "QuotedStringField",
     "NumericBooleanField",
+    "UtcMillisecondDateTime",
 ]
 
 
@@ -72,3 +74,23 @@ class NumericBooleanField(m.fields.Field):
             return True
         else:
             raise ValueError(f"Expected 0, 1, or None, found: {value}")
+
+
+# noinspection DuplicatedCode
+class UtcMillisecondDateTime(m.fields.Field):
+
+    def _serialize(
+            self, value: dt.datetime, attr, obj, **kwargs
+    ) -> Optional[int]:
+        if value is None:
+            return None
+        else:
+            return int(value.timestamp() * 1_000)
+
+    def _deserialize(
+            self, value, attr, data, **kwargs
+    ) -> Optional[dt.datetime]:
+        if value is None:
+            return None
+        else:
+            return dt.datetime.utcfromtimestamp(value / 1_000)
