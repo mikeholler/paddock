@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from marshmallow_enum import EnumField
 from typing import Optional
 from paddock.models._common import Category
 from paddock._dataclasses import require_kwargs_on_init
@@ -8,6 +7,7 @@ from paddock._marshmallow import (
     QuotedStringField,
     NumericBooleanField,
 )
+from paddock._util import maybe_value_of
 
 
 __all__ = [
@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-@dataclass(frozen=True)
+@dataclass
 class CarRecord(JsonModelBaseclass):
     id: int = field(metadata={"data_key": "carid"})
     name: str = field(metadata={
@@ -27,7 +27,7 @@ class CarRecord(JsonModelBaseclass):
 require_kwargs_on_init(CarRecord)
 
 
-@dataclass(frozen=True)
+@dataclass
 class TrackConfigurationRecord(JsonModelBaseclass):
     id: int = field(metadata={"data_key": "trackid"})
     """
@@ -129,30 +129,34 @@ class TrackConfigurationRecord(JsonModelBaseclass):
     Touristenfahrten have this set to True.
     """
 
-    category: Category = field(metadata={
-        "marshmallow_field": EnumField(
-            enum=Category,
-            by_value=True,
-            data_key="catid",
-        )
+    raw_category: int = field(metadata={
+        "data_key": "catid"
     })
     """
-    Category of racing e.g., Category.road
+    Category of racing. This is the raw value the iRacing API sends.
+
+    Consider using category property instead.
     """
 
-    @property
-    def is_road(self):
-        """
-        Opposite of ``is_oval``.
-        """
-        return not self.is_oval
+    category: Optional[Category] = field(init=False)
+    """
+    raw_category coerced into an easy-to-read enum if a recognizable value
+    """
 
-    @property
-    def is_paved(self):
-        """
-        Opposite of ``is_dirt``.
-        """
-        return not self.is_dirt
+    is_road: bool = field(init=False)
+    """
+    Whether the track is a road course.
+    """
+
+    is_paved: bool = field(init=False)
+    """
+    Whether the track is paved (not dirt).
+    """
+
+    def __post_init__(self):
+        self.category = maybe_value_of(Category, self.raw_category)
+        self.is_road = not self.is_oval
+        self.is_paved = not self.is_dirt
 
 
 require_kwargs_on_init(TrackConfigurationRecord)

@@ -1,6 +1,8 @@
 import datetime as dt
-from dataclasses import dataclass, field
-from marshmallow_enum import EnumField
+from dataclasses import (
+    dataclass,
+    field,
+)
 from typing import (
     Optional,
     List,
@@ -8,14 +10,15 @@ from typing import (
 from paddock.models._common import (
     Category,
     License,
+    TimeOfDay,
 )
 from paddock._dataclasses import require_kwargs_on_init
 from paddock._marshmallow import (
     JsonModelBaseclass,
     QuotedStringField,
-    NumericBooleanField,
     UtcMillisecondDateTime,
 )
+from paddock._util import maybe_value_of
 
 
 __all__ = [
@@ -28,7 +31,7 @@ __all__ = [
 # TODO: Car class.
 
 
-@dataclass(frozen=True)
+@dataclass
 class SeasonCar(JsonModelBaseclass):
     id: int = field(metadata={"data_key": "id"})
     """
@@ -43,7 +46,7 @@ class SeasonCar(JsonModelBaseclass):
     """
 
 
-@dataclass(frozen=True)
+@dataclass
 class SeasonTrack(JsonModelBaseclass):
     id: int = field(metadata={"data_key": "id"})
     """
@@ -75,12 +78,22 @@ class SeasonTrack(JsonModelBaseclass):
     on both ends.
     """
 
-    # TODO: Figure out what this is and decode it into an enum? Or some other
-    # specialized type, or else document.
-    time_of_day: int = field(metadata={"data_key": "timeOfDay"})
+    raw_time_of_day: int = field(metadata={"data_key": "timeOfDay"})
+    """
+    Time of day that the race will take place. This is the raw value. Consider
+    using the time_of_day property instead.
+    """
+
+    time_of_day: Optional[int] = field(init=False)
+    """
+    raw_time_of_day coerced into an easy-to-read enum if a recognizable value
+    """
+
+    def __post_init__(self):
+        self.time_of_day = maybe_value_of(TimeOfDay, self.raw_time_of_day)
 
 
-@dataclass(frozen=True)
+@dataclass
 class Season(JsonModelBaseclass):
     series_id: int = field(metadata={"data_key": "seriesid"})
     season_id: int = field(metadata={"data_key": "seasonid"})
@@ -114,27 +127,18 @@ class Season(JsonModelBaseclass):
     is_active: bool = field(metadata={"data_key": "active"})
     is_lite: bool = field(metadata={"data_key": "islite"})
 
-    license: License = field(metadata={
-        "marshmallow_field": EnumField(
-            enum=License,
-            by_value=True,
-            data_key="serieslicgroupid",
-        )
-    })
+    raw_license: int = field(metadata={"data_key": "serieslicgroupid"})
+    raw_category: int = field(metadata={"data_key": "catid"})
 
-    category: Category = field(metadata={
-        "marshmallow_field": EnumField(
-            enum=Category,
-            by_value=True,
-            data_key="catid",
-        )
-    })
-    """
-    Category of racing e.g., Category.road
-    """
+    category: Optional[int] = field(init=False)
+    license: Optional[int] = field(init=False)
 
     tracks: List[SeasonTrack]
     cars: List[SeasonCar]
+
+    def __post_init__(self):
+        self.license = maybe_value_of(License, self.raw_license)
+        self.category = maybe_value_of(Category, self.raw_category)
 
 
 require_kwargs_on_init(Season)

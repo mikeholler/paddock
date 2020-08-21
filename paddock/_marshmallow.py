@@ -1,9 +1,14 @@
 import datetime as dt
+import typing
+
 import marshmallow as m
+from enum import Enum
 from marshmallow_dataclass import class_schema
 from typing import (
+    Any,
     Optional,
     Type,
+    TypeVar,
 )
 from urllib.parse import quote_plus, unquote_plus
 
@@ -15,6 +20,9 @@ __all__ = [
     "NumericBooleanField",
     "UtcMillisecondDateTime",
 ]
+
+
+T = TypeVar("T")
 
 
 class JsonModelMetaclass(type):

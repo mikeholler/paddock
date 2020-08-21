@@ -26,7 +26,7 @@ class TestAllTracks(IRacingIntegrationTest):
                 is_lap_scoring=False,
                 latitude=52.0733006,
                 longitude=-1.0168574,
-                category=models.Category.road,
+                raw_category=models.Category.road.value,
                 configuration_order=5,
                 short_parade_lap=True,
                 time_zone="Europe/London",

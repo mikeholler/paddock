@@ -4,6 +4,7 @@ from enum import Enum
 __all__ = [
     "Category",
     "License",
+    "TimeOfDay",
 ]
 
 
