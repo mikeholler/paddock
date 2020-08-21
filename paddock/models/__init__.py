@@ -1,5 +1,7 @@
 from paddock.models._cars import (
-    CarRecord,
+    CarRecord
+)
+from paddock.models._tracks import (
     TrackConfigurationRecord,
 )
 from paddock.models._common import (
