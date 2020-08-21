@@ -20,6 +20,10 @@ class TestAllSeasons(IRacingIntegrationTest):
         #         name="[Legacy] NASCAR Xfinity Chevrolet Camaro - 2014"
         #     ),
         # )
+        current_seasons = [
+            s for s in response.body()
+            if s.year == 2020 and s.quarter == 3
+        ]
 
         # # Check raw:
         assert_that(response.status_code).is_equal_to(200)

@@ -24,4 +24,14 @@ class License(Enum):
     PRO_WORLD_CUP = 7
 
 
-
+class TimeOfDay(Enum):
+    afternoon = 0
+    morning = 1
+    late_afternoon = 2
+    night = 3
+    specific_time = 4
+    sunrise = 5
+    # unknown = 6
+    # unknown = 7
+    sunset = 8
+    noon = 9

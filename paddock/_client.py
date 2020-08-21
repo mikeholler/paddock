@@ -147,8 +147,8 @@ class Paddock:
 
         if (
             400 <= r.status_code <= 599
-            # or len(r.history) > 0 and "notauthed" in r.request.url
-            or r.is_redirect
+            # Redirected to Auth Page
+            or len(r.history) > 0 and r.history[0].request.url != r.url
         ):
             logger.info(
                 "Request was redirected, indicating that the cookies are "
@@ -239,7 +239,7 @@ class Paddock:
             schema=models.TrackConfigurationRecord.Schema(many=True)
         )
 
-    def all_seasons(self, only_active: bool):
+    def all_seasons(self, only_active: bool) -> PaddockResponse[models.Season]:
         r = self.__request(
             method="GET",
             url="https://members.iracing.com/membersite/member/GetSeasons",
