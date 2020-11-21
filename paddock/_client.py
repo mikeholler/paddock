@@ -158,6 +158,14 @@ class Paddock:
             return self.__request(*args, **kwargs)
         return r
 
+    def request(self, *args, **kwargs):
+        """
+        Simple way to make an arbitrary iRacing request.
+
+        Takes the same arguments as Python requests.request(...).
+        """
+        return self.__request(*args, **kwargs)
+
     def __get_irservice_info(self, resp):
         """
         Gets general information from iracing service like current tracks,
